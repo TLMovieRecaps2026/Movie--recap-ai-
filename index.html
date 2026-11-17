@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Movie Recap AI Studio</title><link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header><div class="logo">🎬</div><div><h1>Movie Recap AI Studio</h1><p>မြန်မာ Movie Recap ဖန်တီးရန်</p></div></header>
+<main>
+<section class="panel">
+<h2>၁။ ဗီဒီယိုတင်ပါ</h2>
+<label class="drop" for="video"><span>☁️</span><b>ဗီဒီယိုရွေးချယ်ရန်</b><small>MP4 / MOV / WEBM · အများဆုံး 500 MB</small></label>
+<input id="video" type="file" accept="video/mp4,video/quicktime,video/webm,.m4v">
+<p id="filename" class="muted">ဗီဒီယို မရွေးရသေးပါ။</p>
+<button id="upload">Upload လုပ်မယ်</button>
+</section>
+<section class="panel">
+<h2>၂။ AI Transcript ထုတ်ပါ</h2>
+<p class="muted">Upload ပြီးမှ AI Analysis ကိုနှိပ်ပါ။ Gemini API key လိုအပ်ပါတယ်။</p>
+<button id="analyze" disabled>AI နဲ့ Transcript ရေးမယ်</button>
+<div id="status" class="status">အဆင်သင့်</div>
+</section>
+<section class="panel">
+<h2>၃။ Transcript ပြင်ဆင်ပါ</h2>
+<textarea id="transcript" rows="13" placeholder="AI ထုတ်ပေးသော မြန်မာ Transcript ဒီနေရာမှာ ပေါ်လာပါမယ်။"></textarea>
+<div class="actions">
+<button id="save" class="secondary" disabled>ပြင်ထားတာ သိမ်းမယ်</button>
+<button id="txt" class="secondary" disabled>TXT Download</button>
+<button id="srt" class="secondary" disabled>SRT Draft Download</button>
+</div>
+<p class="note">မှတ်ချက် - ယခု SRT သည် အကြမ်းဖျင်းအချိန်ခွဲထားခြင်းသာဖြစ်ပြီး အသံနှင့် တိကျစွာ Sync မဖြစ်သေးပါ။</p>
+</section>
+<section class="panel future">
+<h2>နောက်ထပ်ထည့်မည့်အပိုင်းများ</h2>
+<div class="feature">🔊 မြန်မာ AI Voice (MP3)</div>
+<div class="feature">🎞️ Voice + Video ပေါင်းစပ်ခြင်း (MP4)</div>
+<div class="feature">⏱️ အသံနှင့်ကိုက်ညီသော Subtitle Sync</div>
+</section>
+</main>
+<footer>Movie Recap AI Studio · MVP</footer>
+<script src="/static/app.js"></script>
+</body></html>
