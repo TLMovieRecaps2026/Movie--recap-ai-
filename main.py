@@ -1,5 +1,11 @@
+import os
 from fastapi import FastAPI, UploadFile, File
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
+import google.generativeai as genai
+
+# === သင့်ရဲ့ လျှို့ဝှက်သော့ကို အောက်တွင် ထည့်ပါ ===
+API_KEY = "YOUR_API_KEY_HERE"
+genai.configure(api_key=API_KEY)
 
 app = FastAPI()
 
@@ -12,50 +18,45 @@ def home():
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-      body { background-color: #f0f4f8; text-align: center; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding-top: 50px; color: #333;}
-      h1 { color: #2c3e50; margin-bottom: 10px;}
-      p { color: #666; margin-bottom: 30px;}
-      .upload-container { background-color: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: inline-block; max-width: 90%;}
-      input[type="file"] { display: none; }
-      .custom-file-upload { border: 2px dashed #3498db; color: #3498db; padding: 15px 30px; font-size: 16px; border-radius: 8px; cursor: pointer; display: inline-block; margin-bottom: 20px; transition: all 0.3s ease;}
-      .custom-file-upload:hover { background-color: #3498db; color: white; }
-      #file-name { margin-top: 10px; font-style: italic; color: #7f8c8d; }
-      button { background-color: #2ecc71; color: white; padding: 12px 25px; font-size: 16px; border: none; border-radius: 8px; cursor: pointer; transition: background-color 0.3s ease;}
-      button:hover { background-color: #27ae60; }
+      body { background-color: #f0f4f8; text-align: center; font-family: sans-serif; padding: 20px;}
+      .box { background: white; padding: 20px; border-radius: 10px; max-width: 500px; margin: auto; box-shadow: 0 4px 10px rgba(0,0,0,0.1);}
+      button { background: #2ecc71; color: white; padding: 10px 20px; border: none; border-radius: 5px; font-size: 16px; margin-top: 10px;}
+      #loading { display: none; color: #e67e22; margin-top: 15px; font-weight: bold;}
+      #result { margin-top: 20px; text-align: left; background: #eee; padding: 15px; border-radius: 5px; white-space: pre-wrap; font-size: 14px; line-height: 1.6;}
     </style>
     </head>
     <body>
-      <div class="upload-container">
-          <h1>Movie Recap AI Studio</h1>
-          <p>သင့်ရဲ့ ဗီဒီယိုဖိုင်ကို အောက်ပါခလုတ်မှတစ်ဆင့် ရွေးချယ်ပါ။</p>
-          
-          <label class="custom-file-upload">
-              <input type="file" id="video-upload" accept="video/*" onchange="updateFileName()">
-              ဗီဒီယိုဖိုင် ရွေးရန်
-          </label>
-          <div id="file-name">ဖိုင်ရွေးချယ်ထားခြင်း မရှိသေးပါ</div>
-          <br>
-          <button onclick="startUpload()">ဇာတ်ညွှန်းထုတ်ရန် စတင်ပါ</button>
+      <div class="box">
+          <h2>Movie Recap AI Studio</h2>
+          <p>သင့်ရဲ့ ဗီဒီယိုကို ရွေးချယ်ပြီး ဇာတ်ညွှန်းထုတ်ပါ</p>
+          <input type="file" id="video-upload" accept="video/*">
+          <br><br>
+          <button onclick="uploadVideo()">ဇာတ်ညွှန်းထုတ်ရန်</button>
+          <div id="loading">AI မှ ဗီဒီယိုကို ကြည့်ရှုနေပါသည်... (ခဏစောင့်ပါ)</div>
+          <div id="result"></div>
       </div>
 
       <script>
-        function updateFileName() {
-            const input = document.getElementById('video-upload');
-            const fileNameDisplay = document.getElementById('file-name');
-            if (input.files.length > 0) {
-                fileNameDisplay.textContent = "ရွေးချယ်ထားသောဖိုင်: " + input.files[0].name;
-            } else {
-                fileNameDisplay.textContent = "ဖိုင်ရွေးချယ်ထားခြင်း မရှိသေးပါ";
-            }
-        }
-
-        function startUpload() {
+        async function uploadVideo() {
              const input = document.getElementById('video-upload');
              if (input.files.length === 0) {
-                 alert("ကျေးဇူးပြု၍ ဗီဒီယိုဖိုင် တစ်ခုခုကို အရင်ရွေးချယ်ပေးပါ။");
-                 return;
+                 alert("ကျေးဇူးပြု၍ ဗီဒီယိုဖိုင် တစ်ခုခုကို အရင်ရွေးချယ်ပေးပါ။"); return;
              }
-             alert("ဗီဒီယိုဖိုင် လက်ခံရရှိပါပြီ! မကြာမီ AI နှင့် ချိတ်ဆက်ပါမည်။ (ဒါက အစမ်းပြသခြင်းဖြစ်ပါတယ်)");
+             document.getElementById('loading').style.display = 'block';
+             document.getElementById('result').innerText = '';
+             
+             const formData = new FormData();
+             formData.append("file", input.files[0]);
+
+             try {
+                 const response = await fetch("/generate", { method: "POST", body: formData });
+                 const data = await response.json();
+                 document.getElementById('loading').style.display = 'none';
+                 document.getElementById('result').innerText = data.script || data.error;
+             } catch(err) {
+                 document.getElementById('loading').style.display = 'none';
+                 document.getElementById('result').innerText = "ချိတ်ဆက်မှု ပြတ်တောက်သွားပါသည်။";
+             }
         }
       </script>
     </body>
@@ -63,3 +64,30 @@ def home():
     """
     return HTMLResponse(content=html_code)
 
+@app.post("/generate")
+async def generate(file: UploadFile = File(...)):
+    try:
+        temp_path = f"/tmp/{file.filename}"
+        with open(temp_path, "wb") as f:
+            f.write(await file.read())
+        
+        video_file = genai.upload_file(path=temp_path)
+        
+        prompt = """
+        မင်းက မြန်မာလို Movie Recap ဇာတ်ညွှန်းရေးပေးရမယ့် ကျွမ်းကျင်သူဖြစ်တယ်။ 
+        ဒီဗီဒီယိုကို ကြည့်ပြီး အောက်ပါ စည်းမျဉ်းတွေနဲ့အညီ ဇာတ်ညွှန်းရေးပေးပါ:
+        ၁။ ဇာတ်ကြောင်းပြောခြင်း (Narrator) နှင့် ဇာတ်ကောင်များ၏ ပြောစကား (Dialogue) များကို ပေါင်းစပ်ရေးပါ။
+        ၂။ စကားပြောဟန် သဘာဝကျကျ မြန်မာလိုသာ ရေးပါ။ အင်္ဂလိပ်စာလုံးများ မသုံးပါနှင့်။
+        ၃။ ဂဏန်းများကို စာသားဖြင့်သာ ရေးပါ။ (ဥပမာ- ၁ အစား တစ်)
+        ၄။ ခေါင်းစဉ်၊ Timestamp၊ အခန်းခွဲများ လုံးဝ မထည့်ပါနှင့်။
+        ၅။ ဇာတ်လမ်းကို အစမှ အဆုံးထိ အသေးစိတ် (Full Scene) ရေးပါ။ အတိုချုပ် မရေးပါနှင့်။
+        ၆။ အဆုံးသတ်တွင် ကြည့်ရှုသူများကို သဘာဝကျကျ နှုတ်ဆက်စကား ထည့်ပေးပါ။
+        """
+        
+        model = genai.GenerativeModel(model_name="gemini-1.5-pro")
+        response = model.generate_content([prompt, video_file])
+        
+        os.remove(temp_path)
+        return JSONResponse(content={"script": response.text})
+    except Exception as e:
+        return JSONResponse(content={"error": str(e)})
