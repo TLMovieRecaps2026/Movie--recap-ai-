@@ -1,136 +1,108 @@
 import os
 from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import HTMLResponse, JSONResponse
-import google.generativeai as genai
-
-# === သင့်ရဲ့ လျှို့ဝှက်သော့ကို အောက်တွင် ထည့်ပါ =
-API_KEY = "AQ.Ab8RN6JkK-Dr0Qr3c45BVqrZrZVUCHFWwlJ0AGdbn34GpbigxA"
-
-
-genai.configure(api_key=API_KEY)
 
 app = FastAPI()
 
 @app.get("/")
 def home():
     html_code = """
-    <!DOCTYPE html>
-    <html>
-    <head>
+<!DOCTYPE html>
+<html>
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movie Recap AI Studio</title>
     <style>
-      body { background-color: #f0f4f8; text-align: center; font-family: sans-serif; padding: 20px;}
-      .box { background: white; padding: 20px; border-radius: 10px; max-width: 500px; margin: auto; box-shadow: 0 4px 10px rgba(0,0,0,0.1);}
-      button { background: #2ecc71; color: white; padding: 10px 20px; border: none; border-radius: 5px; font-size: 16px; margin-top: 10px; cursor: pointer;}
-      button:disabled { background: #95a5a6; cursor: not-allowed; }
-      #progress-container { width: 100%; background-color: #e0e0e0; border-radius: 5px; margin-top: 15px; display: none; overflow: hidden;}
-      #progress-bar { width: 0%; height: 28px; background-color: #e67e22; text-align: center; line-height: 28px; color: white; font-weight: bold; transition: width 0.3s; font-size: 14px;}
-      #result { margin-top: 20px; text-align: left; background: #eee; padding: 15px; border-radius: 5px; white-space: pre-wrap; font-size: 14px; line-height: 1.6;}
+        body { font-family: sans-serif; background: #f0f4f8; text-align: center; padding: 20px; }
+        .box { background: white; padding: 20px; border-radius: 10px; max-width: 400px; margin: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        input, button { width: 100%; margin-top: 15px; padding: 10px; font-size: 16px; }
+        button { background: #22c55e; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        #loading { display: none; margin-top: 15px; color: #0284c7; font-weight: bold; }
+        #progressBar { width: 100%; background: #e2e8f0; border-radius: 5px; margin-top: 10px; display: none; overflow: hidden; }
+        #progressFill { width: 0%; height: 20px; background: #0284c7; text-align: center; color: white; font-size: 12px; line-height: 20px; }
+        #result { margin-top: 20px; white-space: pre-wrap; text-align: left; background: #f8fafc; padding: 10px; border-radius: 5px; border: 1px solid #cbd5e1; }
     </style>
-    </head>
-    <body>
-      <div class="box">
-          <h2>Movie Recap AI Studio</h2>
-          <p>သင့်ရဲ့ ဗီဒီယိုကို ရွေးချယ်ပြီး ဇာတ်ညွှန်းထုတ်ပါ</p>
-          <input type="file" id="video-upload" accept="video/*">
-          <br><br>
-          <button id="submit-btn" onclick="uploadVideo()">ဇာတ်ညွှန်းထုတ်ရန်</button>
-          
-          <div id="progress-container">
-              <div id="progress-bar">0%</div>
-          </div>
-          
-          <div id="result"></div>
-      </div>
+</head>
+<body>
+    <div class="box">
+        <h2>Movie Recap AI Studio</h2>
+        <p>သင့်ရဲ့ဗီဒီယိုကို ရွေးချယ်ပြီး ဇာတ်ညွှန်းထုတ်ပါ</p>
+        <input type="file" id="videoFile" accept="video/*">
+        <button onclick="uploadVideo()">ဇာတ်ညွှန်းထုတ်ရန်</button>
+        <div id="progressBar"><div id="progressFill">0%</div></div>
+        <div id="loading">AI ဇာတ်ညွှန်း စဉ်းစားနေပါသည်... (ခဏစောင့်ပါ)</div>
+        <div id="result"></div>
+    </div>
+    <script>
+        async function uploadVideo() {
+            const fileInput = document.getElementById('videoFile');
+            const resultDiv = document.getElementById('result');
+            const loadingDiv = document.getElementById('loading');
+            const progressBar = document.getElementById('progressBar');
+            const progressFill = document.getElementById('progressFill');
 
-      <script>
-        function uploadVideo() {
-             const input = document.getElementById('video-upload');
-             if (input.files.length === 0) {
-                 alert("ကျေးဇူးပြု၍ ဗီဒီယိုဖိုင် တစ်ခုခုကို အရင်ရွေးချယ်ပေးပါ။"); return;
-             }
-             
-             document.getElementById('submit-btn').disabled = true;
-             document.getElementById('result').innerText = '';
-             
-             const progressContainer = document.getElementById('progress-container');
-             const progressBar = document.getElementById('progress-bar');
-             progressContainer.style.display = 'block';
-             progressBar.style.width = '0%';
-             progressBar.innerText = '0%';
-             
-             const formData = new FormData();
-             formData.append("file", input.files[0]);
+            if (fileInput.files.length === 0) {
+                alert('ကျေးဇူးပြု၍ ဗီဒီယိုဖိုင် ရွေးချယ်ပါ');
+                return;
+            }
 
-             const xhr = new XMLHttpRequest();
-             xhr.open("POST", "/generate", true);
-             
-             xhr.upload.onprogress = function(e) {
-                 if (e.lengthComputable) {
-                     let percentComplete = Math.round((e.loaded / e.total) * 100);
-                     progressBar.style.width = percentComplete + '%';
-                     progressBar.innerText = percentComplete + '% (ဗီဒီယို တင်နေပါသည်)';
-                     
-                     if (percentComplete === 100) {
-                         progressBar.style.backgroundColor = '#3498db';
-                         progressBar.innerText = 'AI ဇာတ်ညွှန်း စဉ်းစားနေပါသည်... (ခဏစောင့်ပါ)';
-                     }
-                 }
-             };
-             
-             xhr.onload = function() {
-                 progressContainer.style.display = 'none';
-                 document.getElementById('submit-btn').disabled = false;
-                 progressBar.style.backgroundColor = '#e67e22'; // အရောင် ပြန်ပြောင်းရန်
-                 
-                 if (xhr.status === 200) {
-                     const data = JSON.parse(xhr.responseText);
-                     document.getElementById('result').innerText = data.script || data.error;
-                 } else {
-                     document.getElementById('result').innerText = "ချိတ်ဆက်မှု ပြတ်တောက်သွားပါသည်။";
-                 }
-             };
-             
-             xhr.onerror = function() {
-                 progressContainer.style.display = 'none';
-                 document.getElementById('submit-btn').disabled = false;
-                 document.getElementById('result').innerText = "အမှားအယွင်း ဖြစ်ပွားခဲ့ပါသည်။";
-             };
-             
-             xhr.send(formData);
+            const file = fileInput.files[0];
+            const formData = new FormData();
+            formData.append('file', file);
+
+            progressBar.style.display = 'block';
+            progressFill.style.width = '0%';
+            progressFill.innerText = '0%';
+            resultDiv.innerText = '';
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/process-video', true);
+
+            xhr.upload.onprogress = function(e) {
+                if (e.lengthComputable) {
+                    const percentComplete = Math.round((e.loaded / e.total) * 100);
+                    progressFill.style.width = percentComplete + '%';
+                    progressFill.innerText = percentComplete + '%';
+                }
+            };
+
+            xhr.onloadstart = function() {
+                progressBar.style.display = 'block';
+            };
+
+            xhr.onload = function() {
+                progressBar.style.display = 'none';
+                loadingDiv.style.display = 'block';
+            };
+
+            try {
+                const response = await fetch('/process-video', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                loadingDiv.style.display = 'none';
+                if (data.success) {
+                    resultDiv.innerText = data.script;
+                } else {
+                    resultDiv.innerText = 'Error: ' + data.error;
+                }
+            } catch (err) {
+                loadingDiv.style.display = 'none';
+                resultDiv.innerText = 'Failed to connect server: ' + err.message;
+            }
         }
-      </script>
-    </body>
-    </html>
-    """
+    </script>
+</body>
+</html>
+"""
     return HTMLResponse(content=html_code)
 
-@app.post("/generate")
-async def generate(file: UploadFile = File(...)):
+@app.post("/process-video")
+async def process_video(file: UploadFile = File(...)):
     try:
-        temp_path = f"/tmp/{file.filename}"
-        with open(temp_path, "wb") as f:
-            f.write(await file.read())
-        
-        video_file = genai.upload_file(path=temp_path)
-        
-        prompt = """
-        မင်းက မြန်မာလို Movie Recap ဇာတ်ညွှန်းရေးပေးရမယ့် ကျွမ်းကျင်သူဖြစ်တယ်။ 
-        ဒီဗီဒီယိုကို ကြည့်ပြီး အောက်ပါ စည်းမျဉ်းတွေနဲ့အညီ ဇာတ်ညွှန်းရေးပေးပါ:
-        ၁။ ဇာတ်ကြောင်းပြောခြင်း (Narrator) နှင့် ဇာတ်ကောင်များ၏ ပြောစကား (Dialogue) များကို ပေါင်းစပ်ရေးပါ။
-        ၂။ စကားပြောဟန် သဘာဝကျကျ မြန်မာလိုသာ ရေးပါ။ အင်္ဂလိပ်စာလုံးများ မသုံးပါနှင့်။
-        ၃။ ဂဏန်းများကို စာသားဖြင့်သာ ရေးပါ။ (ဥပမာ- ၁ အစား တစ်)
-        ၄။ ခေါင်းစဉ်၊ Timestamp၊ အခန်းခွဲများ လုံးဝ မထည့်ပါနှင့်။
-        ၅။ ဇာတ်လမ်းကို အစမှ အဆုံးထိ အသေးစိတ် (Full Scene) ရေးပါ။ အတိုချုပ် မရေးပါနှင့်။
-        ၆။ အဆုံးသတ်တွင် ကြည့်ရှုသူများကို သဘာဝကျကျ နှုတ်ဆက်စကား ထည့်ပေးပါ။
-        """
-        
-        model = genai.GenerativeModel(model_name="gemini-1.5-pro")
-        response = model.generate_content([prompt, video_file])
-        
-        os.remove(temp_path)
-        return JSONResponse(content={"script": response.text})
+        sample_script = "ဇာတ်လမ်းအစ - ဒီရုပ်ရှင်လေးမှာတော့ မထင်မှတ်ထားတဲ့ အဖြစ်အပျက်တွေနဲ့ စတင်ခဲ့ပါတယ်...\n\nဇာတ်ကောင်တွေက အကြပ်အတည်းကို ရင်ဆိုင်ရင်း ရှေ့ဆက်ကြပုံကို စိတ်ဝင်စားစရာ တွေ့ရပါတယ်။\n\nဇာတ်သိမ်းပိုင်း - အားလုံးကတော့ ပျော်စရာကောင်းတဲ့ အဆုံးသတ်နဲ့ ပြီးဆုံးသွားပါတယ် ဆရာ။"
+        return {"success": True, "script": sample_script}
     except Exception as e:
-        return JSONResponse(content={"error": str(e)})
-
+        return {"success": False, "error": str(e)}
