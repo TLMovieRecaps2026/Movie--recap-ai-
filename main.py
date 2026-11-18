@@ -3,7 +3,7 @@ from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import HTMLResponse, JSONResponse
 import google.generativeai as genai
 
-api_key = os.environ.get("GEMINI_API_KEY", "AQ.Ab8RN6Jn6SAFo0H0XrAnHyOPYbS0GZo067IKSxV4kilZaeuRQg")
+api_key = os.environ.get("GEMINI_API_KEY", "AQ.Ab8RN6J7_0yHFUMce-70DRtDFjRdknyVD1fhHwvWdD0ehH3sMA")
 genai.configure(api_key=api_key)
 
 app = FastAPI()
