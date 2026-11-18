@@ -3,8 +3,9 @@ from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import HTMLResponse, JSONResponse
 import google.generativeai as genai
 
-# === သင့်ရဲ့ လျှို့ဝှက်သော့ကို အောက်တွင် ထည့်ပါ ===
-API_KEY = "YOUR_API_KEY_HERE"
+# === သင့်ရဲ့ လျှို့ဝှက်သော့ကို အောက်တွင် ထည့်ပါ =
+API_KEY = AQ.Ab8RN6JkK-Dr0Qr3c45BVqrZrZVUcHFWWlJ0AGdbn34GpbigxA
+
 genai.configure(api_key=API_KEY)
 
 app = FastAPI()
