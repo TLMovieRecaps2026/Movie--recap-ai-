@@ -4,7 +4,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 import google.generativeai as genai
 
 # === သင့်ရဲ့ လျှို့ဝှက်သော့ကို အောက်တွင် ထည့်ပါ ===
-API_KEY = "YOUR_API_KEY_HERE"
+API_KEY = "AQ.Ab8RN6LsyKXc-6KUlF5lIhvp2eqYxmLNyqGehatPPd4Bq8OBHw"
 genai.configure(api_key=API_KEY)
 
 app = FastAPI()
