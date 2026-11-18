@@ -1,6 +1,10 @@
 import os
 from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import HTMLResponse, JSONResponse
+import google.generativeai as genai
+
+api_key = os.environ.get("GEMINI_API_KEY", "AQ.Ab8RN6JkK-Dr0Qr3c45BVqrZrZVUCHFWwlJ0AGdbn34GpbigxA")
+genai.configure(api_key=api_key)
 
 app = FastAPI()
 
@@ -12,25 +16,22 @@ def home():
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Movie Recap AI Studio</title>
+    <title>JT Movie Recap AI Studio</title>
     <style>
         body { font-family: sans-serif; background: #f0f4f8; text-align: center; padding: 20px; }
         .box { background: white; padding: 20px; border-radius: 10px; max-width: 400px; margin: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         input, button { width: 100%; margin-top: 15px; padding: 10px; font-size: 16px; }
         button { background: #22c55e; color: white; border: none; border-radius: 5px; cursor: pointer; }
         #loading { display: none; margin-top: 15px; color: #0284c7; font-weight: bold; }
-        #progressBar { width: 100%; background: #e2e8f0; border-radius: 5px; margin-top: 10px; display: none; overflow: hidden; }
-        #progressFill { width: 0%; height: 20px; background: #0284c7; text-align: center; color: white; font-size: 12px; line-height: 20px; }
         #result { margin-top: 20px; white-space: pre-wrap; text-align: left; background: #f8fafc; padding: 10px; border-radius: 5px; border: 1px solid #cbd5e1; }
     </style>
 </head>
 <body>
     <div class="box">
-        <h2>Movie Recap AI Studio</h2>
+        <h2>JT Movie Recap AI Studio</h2>
         <p>သင့်ရဲ့ဗီဒီယိုကို ရွေးချယ်ပြီး ဇာတ်ညွှန်းထုတ်ပါ</p>
         <input type="file" id="videoFile" accept="video/*">
         <button onclick="uploadVideo()">ဇာတ်ညွှန်းထုတ်ရန်</button>
-        <div id="progressBar"><div id="progressFill">0%</div></div>
         <div id="loading">AI ဇာတ်ညွှန်း စဉ်းစားနေပါသည်... (ခဏစောင့်ပါ)</div>
         <div id="result"></div>
     </div>
@@ -39,8 +40,6 @@ def home():
             const fileInput = document.getElementById('videoFile');
             const resultDiv = document.getElementById('result');
             const loadingDiv = document.getElementById('loading');
-            const progressBar = document.getElementById('progressBar');
-            const progressFill = document.getElementById('progressFill');
 
             if (fileInput.files.length === 0) {
                 alert('ကျေးဇူးပြု၍ ဗီဒီယိုဖိုင် ရွေးချယ်ပါ');
@@ -51,30 +50,8 @@ def home():
             const formData = new FormData();
             formData.append('file', file);
 
-            progressBar.style.display = 'block';
-            progressFill.style.width = '0%';
-            progressFill.innerText = '0%';
+            loadingDiv.style.display = 'block';
             resultDiv.innerText = '';
-
-            const xhr = new XMLHttpRequest();
-            xhr.open('POST', '/process-video', true);
-
-            xhr.upload.onprogress = function(e) {
-                if (e.lengthComputable) {
-                    const percentComplete = Math.round((e.loaded / e.total) * 100);
-                    progressFill.style.width = percentComplete + '%';
-                    progressFill.innerText = percentComplete + '%';
-                }
-            };
-
-            xhr.onloadstart = function() {
-                progressBar.style.display = 'block';
-            };
-
-            xhr.onload = function() {
-                progressBar.style.display = 'none';
-                loadingDiv.style.display = 'block';
-            };
 
             try {
                 const response = await fetch('/process-video', {
@@ -102,7 +79,22 @@ def home():
 @app.post("/process-video")
 async def process_video(file: UploadFile = File(...)):
     try:
-        sample_script = "ဇာတ်လမ်းအစ - ဒီရုပ်ရှင်လေးမှာတော့ မထင်မှတ်ထားတဲ့ အဖြစ်အပျက်တွေနဲ့ စတင်ခဲ့ပါတယ်...\n\nဇာတ်ကောင်တွေက အကြပ်အတည်းကို ရင်ဆိုင်ရင်း ရှေ့ဆက်ကြပုံကို စိတ်ဝင်စားစရာ တွေ့ရပါတယ်။\n\nဇာတ်သိမ်းပိုင်း - အားလုံးကတော့ ပျော်စရာကောင်းတဲ့ အဆုံးသတ်နဲ့ ပြီးဆုံးသွားပါတယ် ဆရာ။"
-        return {"success": True, "script": sample_script}
+        temp_file_path = f"temp_{file.filename}"
+        with open(temp_file_path, "wb") as buffer:
+            content = await file.read()
+            buffer.write(content)
+
+        video_file = genai.upload_file(path=temp_file_path)
+        
+        model = genai.GenerativeModel(model_name="gemini-1.5-flash")
+        prompt = "ဒီဗီဒီယိုဖိုင်ကို ကြည့်ပြီး ဇာတ်လမ်းအစ၊ အလယ်၊ အဆုံး ပြီးပြည့်စုံတဲ့ မြန်မာလို ရုပ်ရှင်ဇာတ်ညွှန်း (Movie Recap) ကို သဘာဝကျကျ အသေးစိတ် ရေးပေးပါ။"
+        
+        response = model.generate_content([video_file, prompt])
+        script_text = response.text
+
+        if os.path.exists(temp_file_path):
+            os.remove(temp_file_path)
+
+        return {"success": True, "script": script_text}
     except Exception as e:
         return {"success": False, "error": str(e)}
